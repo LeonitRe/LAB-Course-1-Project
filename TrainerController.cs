@@ -1,153 +1,204 @@
-﻿
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using BestTrainerAPI_ASP.NET.Models;
-using System.IO;
+using System.Data;
+using System.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
+using TrainerRegister.Models;
 using Microsoft.AspNetCore.Hosting;
+using System.IO;
 
-namespace BestTrainerAPI_ASP.NET.Controllers
+namespace TrainerRegister.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    public class TrainerController : ControllerBase
     {
-   
-        [Route("api/[controller]")]
-        [ApiController]
-        public class TrainerController : ControllerBase
+        private readonly IConfiguration _configuration;
+        private readonly IWebHostEnvironment _env;
+        public TrainerController(IConfiguration configuration, IWebHostEnvironment env)
         {
-            private readonly TrainerDbContext _context;
-            private readonly IWebHostEnvironment _hostEnvironment;
-
-            public TrainerController(TrainerDbContext context, IWebHostEnvironment hostEnvironment)
-            {
-                _context = context;
-                this._hostEnvironment = hostEnvironment;
-            }
-
-            // GET: api/Trainer
-            [HttpGet]
-            public async Task<ActionResult<IEnumerable<TrainerModel>>> GetTrainers()
-            {
-                return await _context.Trainers
-                    .Select(x => new TrainerModel()
-                    {
-                        TrainerID = x.TrainerID,
-                        TrainerName = x.TrainerName,
-                        Occupation = x.Occupation,
-                        ImageName = x.ImageName,
-                        ImageSrc = String.Format("{0}://{1}{2}/Images/{3}", Request.Scheme, Request.Host, Request.PathBase, x.ImageName)
-                    })
-                    .ToListAsync();
-            }
-
-            // GET: api/Trainer/5
-            [HttpGet("{id}")]
-            public async Task<ActionResult<TrainerModel>> GetTrainerModel(int id)
-            {
-                var trainerModel = await _context.Trainers.FindAsync(id);
-
-                if (trainerModel == null)
-                {
-                    return NotFound();
-                }
-
-                return trainerModel;
-            }
-
-            // PUT: api/Trainer/5
-            // To protect from overposting attacks, enable the specific properties you want to bind to, for
-            // more details, see https://go.microsoft.com/fwlink/?linkid=2123754.
-            [HttpPut("{id}")]
-            public async Task<IActionResult> PutTrainerModel(int id, [FromForm] TrainerModel trainerModel)
-            {
-                if (id != trainerModel.TrainerID)
-                {
-                    return BadRequest();
-                }
-
-                if (trainerModel.ImageFile != null)
-                {
-                    DeleteImage(trainerModel.ImageName);
-                    trainerModel.ImageName = await SaveImage(trainerModel.ImageFile);
-                }
-
-                _context.Entry(trainerModel).State = EntityState.Modified;
-
-                try
-                {
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!TrainerModelExists(id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-
-                return NoContent();
-            }
-
-            // POST: api/Trainer
-            // To protect from overposting attacks, enable the specific properties you want to bind to, for
-            // more details, see https://go.microsoft.com/fwlink/?linkid=2123754.
-            [HttpPost]
-            public async Task<ActionResult<TrainerModel>> PostTrainerModel([FromForm] TrainerModel trainerModel)
-            {
-                trainerModel.ImageName = await SaveImage(trainerModel.ImageFile);
-                _context.Trainers.Add(trainerModel);
-                await _context.SaveChangesAsync();
-
-                return StatusCode(201);
-            }
-
-            // DELETE: api/Trainer/5
-            [HttpDelete("{id}")]
-            public async Task<ActionResult<TrainerModel>> DeleteTrainerModel(int id)
-            {
-                var trainerModel = await _context.Trainers.FindAsync(id);
-                if (trainerModel == null)
-                {
-                    return NotFound();
-                }
-                DeleteImage(trainerModel.ImageName);
-                _context.Trainers.Remove(trainerModel);
-                await _context.SaveChangesAsync();
-
-                return trainerModel;
-            }
-
-            private bool TrainerModelExists(int id)
-            {
-                return _context.Trainers.Any(e => e.TrainerID == id);
-            }
-
-            [NonAction]
-            public async Task<string> SaveImage(IFormFile imageFile)
-            {
-                string imageName = new String(Path.GetFileNameWithoutExtension(imageFile.FileName).Take(10).ToArray()).Replace(' ', '-');
-                imageName = imageName + DateTime.Now.ToString("yymmssfff") + Path.GetExtension(imageFile.FileName);
-                var imagePath = Path.Combine(_hostEnvironment.ContentRootPath, "Images", imageName);
-                using (var fileStream = new FileStream(imagePath, FileMode.Create))
-                {
-                    await imageFile.CopyToAsync(fileStream);
-                }
-                return imageName;
-            }
-
-        [NonAction]
-        public void DeleteImage(string imageName)
-        {
-            var imagePath = Path.Combine(_hostEnvironment.ContentRootPath, "Images", imageName);
-            if (System.IO.File.Exists(imagePath))
-                System.IO.File.Delete(imagePath);
+            _configuration = configuration;
+            _env = env;
         }
-     }
- }
 
+
+
+        [HttpGet]
+        public JsonResult Get()
+        {
+            string query = @"
+                            select TrainerId, TrainerName, TrainerUsername, Email, EmailPrivat, PhoneNumber, convert(varchar(10),DateOfBirth,120) as DateOfBirth, Gender, City, Nationality, Address, AgeGroups, convert(varchar(10),DateOfJoining,120) as DateOfJoining, PhotoFileName
+                            from
+                            dbo.Trainer
+                            ";
+
+            DataTable table = new DataTable();
+            string sqlDataSource = _configuration.GetConnectionString("TrainerRegisterAppCon");
+            SqlDataReader myReader;
+            using (SqlConnection myCon = new SqlConnection(sqlDataSource))
+            {
+                myCon.Open();
+                using (SqlCommand myCommand = new SqlCommand(query, myCon))
+                {
+                    myReader = myCommand.ExecuteReader();
+                    table.Load(myReader);
+                    myReader.Close();
+                    myCon.Close();
+                }
+            }
+
+            return new JsonResult(table);
+        }
+
+        [HttpPost]
+        public JsonResult Post(Trainer tra)
+        {
+            string query = @"
+                           insert into dbo.Trainer
+                           (TrainerName, TrainerUsername, Email, EmailPrivat, PhoneNumber, DateOfBirth, Gender, City, Nationality, Address, AgeGroups, DateOfJoining, PhotoFileName)
+                    values (@TrainerName, @TrainerUsername, @Email, @EmailPrivat, @PhoneNumber, @DateOfBirth, @Gender, @City, @Nationality, @Address, @AgeGroups, @DateOfJoining, @PhotoFileName)
+                            ";
+
+            DataTable table = new DataTable();
+            string sqlDataSource = _configuration.GetConnectionString("TrainerRegisterAppCon");
+            SqlDataReader myReader;
+            using (SqlConnection myCon = new SqlConnection(sqlDataSource))
+            {
+                myCon.Open();
+                using (SqlCommand myCommand = new SqlCommand(query, myCon))
+                {
+                    myCommand.Parameters.AddWithValue("@TrainerName", tra.TrainerName);
+                    myCommand.Parameters.AddWithValue("@TrainerUsername", tra.TrainerUsername);
+                    myCommand.Parameters.AddWithValue("@Email", tra.Email);
+                    myCommand.Parameters.AddWithValue("@EmailPrivat", tra.EmailPrivat);
+                    myCommand.Parameters.AddWithValue("@PhoneNumber", tra.PhoneNumber);
+                    myCommand.Parameters.AddWithValue("@DateOfBirth", tra.DateOfBirth);
+                    myCommand.Parameters.AddWithValue("@Gender", tra.Gender);
+                    myCommand.Parameters.AddWithValue("@City", tra.City);
+                    myCommand.Parameters.AddWithValue("@Nationality", tra.Nationality);
+                    myCommand.Parameters.AddWithValue("@Address", tra.Address);
+                    myCommand.Parameters.AddWithValue("@AgeGroups", tra.AgeGroups);
+                    myCommand.Parameters.AddWithValue("@DateOfJoining", tra.DateOfJoining);
+                    myCommand.Parameters.AddWithValue("@PhotoFileName", tra.PhotoFileName);
+                    myReader = myCommand.ExecuteReader();
+                    table.Load(myReader);
+                    myReader.Close();
+                    myCon.Close();
+                }
+            }
+
+            return new JsonResult("Added Successfully");
+        }
+
+
+        [HttpPut]
+        public JsonResult Put(Trainer tra)
+        {
+            string query = @"
+                           update dbo.Trainer
+                           set TrainerName= @TrainerName,
+                            TrainerUsername=@TrainerUsername,
+                            Email=@Email,
+                            EmailPrivat=@EmailPrivat,
+                            PhoneNumber=@PhoneNumber,
+                            DateOfBirth=@DateOfBirth,
+                            Gender=@Gender,
+                            City=@City,
+                            Nationality=@Nationality,
+                            Address=@Address,
+                            AgeGroups=@AgeGroups,
+                            DateOfJoining=@DateOfJoining,
+                            PhotoFileName=@PhotoFileName
+                            where TrainerId=@TrainerId
+                            ";
+
+            DataTable table = new DataTable();
+            string sqlDataSource = _configuration.GetConnectionString("TrainerRegisterAppCon");
+            SqlDataReader myReader;
+            using (SqlConnection myCon = new SqlConnection(sqlDataSource))
+            {
+                myCon.Open();
+                using (SqlCommand myCommand = new SqlCommand(query, myCon))
+                {
+                    myCommand.Parameters.AddWithValue("@TrainerName", tra.TrainerName);
+                    myCommand.Parameters.AddWithValue("@TrainerUsername", tra.TrainerUsername);
+                    myCommand.Parameters.AddWithValue("@Email", tra.Email);
+                    myCommand.Parameters.AddWithValue("@EmailPrivat", tra.EmailPrivat);
+                    myCommand.Parameters.AddWithValue("@PhoneNumber", tra.PhoneNumber);
+                    myCommand.Parameters.AddWithValue("@DateOfBirth", tra.DateOfBirth);
+                    myCommand.Parameters.AddWithValue("@Gender", tra.Gender);
+                    myCommand.Parameters.AddWithValue("@City", tra.City);
+                    myCommand.Parameters.AddWithValue("@City", tra.Nationality);
+                    myCommand.Parameters.AddWithValue("@Address", tra.Address);
+                    myCommand.Parameters.AddWithValue("@AgeGroups", tra.AgeGroups);
+                    myCommand.Parameters.AddWithValue("@DateOfJoining", tra.DateOfJoining);
+                    myCommand.Parameters.AddWithValue("@PhotoFileName", tra.PhotoFileName);
+                    myReader = myCommand.ExecuteReader();
+                    table.Load(myReader);
+                    myReader.Close();
+                    myCon.Close();
+                }
+            }
+
+            return new JsonResult("Updated Successfully");
+        }
+
+        [HttpDelete("{id}")]
+        public JsonResult Delete(int id)
+        {
+            string query = @"
+                           delete from dbo.Trainer
+                            where TrainerId=@TrainerId
+                            ";
+
+            DataTable table = new DataTable();
+            string sqlDataSource = _configuration.GetConnectionString("TrainerRegisterAppCon");
+            SqlDataReader myReader;
+            using (SqlConnection myCon = new SqlConnection(sqlDataSource))
+            {
+                myCon.Open();
+                using (SqlCommand myCommand = new SqlCommand(query, myCon))
+                {
+                    myCommand.Parameters.AddWithValue("@TrainerId", id);
+
+                    myReader = myCommand.ExecuteReader();
+                    table.Load(myReader);
+                    myReader.Close();
+                    myCon.Close();
+                }
+            }
+
+            return new JsonResult("Deleted Successfully");
+        }
+
+
+        [Route("SaveFile")]
+        [HttpPost]
+        public JsonResult SaveFile()
+        {
+            try
+            {
+                var httpRequest = Request.Form;
+                var postedFile = httpRequest.Files[0];
+                string filename = postedFile.FileName;
+                var physicalPath = _env.ContentRootPath + "/Photos/" + filename;
+
+                using (var stream = new FileStream(physicalPath, FileMode.Create))
+                {
+                    postedFile.CopyTo(stream);
+                }
+
+                return new JsonResult(filename);
+            }
+            catch (Exception)
+            {
+
+                return new JsonResult("anonymous.PNG");
+            }
+        }
+    }
+}
