@@ -1,66 +1,161 @@
-import logo from './logo.svg';
-import './App.css';
-import {Home} from './Home';
-import {Trainer} from './Trainer';
-import {AgeGroups} from './AgeGroups';
-import {Gender} from './Gender';
-import {City} from './City';
-import {Nationality} from './Nationality';
-import {BrowserRouter, Route, Routes, Switch, NavLink, Router} from 'react-router-dom';
+import "antd/dist/antd.css";
+import "./App.css";
+import "./style.css";
+import { Button, Table, Modal, Input } from "antd";
+import { useState } from "react";
+import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 
 function App() {
-  return (
-    <BrowserRouter>
-    <div className="App container">
-      <h3 className="d-flex justify-content-center m-3">
-        Trainer Cruds
-      </h3>
-      <nav className="navbar navbar-expand-sm bg-light navbar-dark">
-        <ul className="navbar-nav">
-          <li className="nav-item- m-1">
-            <NavLink className="btn btn-light btn-outline-primary" to="/home">
-              Home
-            </NavLink>
-          </li>
-          <li className="nav-item- m-1">
-            <NavLink className="btn btn-light btn-outline-primary" to="/trainer">
-              Add Trainer
-            </NavLink>
-          </li>
-          <li className="nav-item- m-1">
-            <NavLink className="btn btn-light btn-outline-primary" to="/gender">
-              Add Gender
-            </NavLink>
-          </li>
-          <li className="nav-item- m-1">
-            <NavLink className="btn btn-light btn-outline-primary" to="/city">
-              Add City
-            </NavLink>
-          </li>
-          <li className="nav-item- m-1">
-            <NavLink className="btn btn-light btn-outline-primary" to="/nationality">
-              Add Nationality
-            </NavLink>
-          </li>
-          <li className="nav-item- m-1">
-            <NavLink className="btn btn-light btn-outline-primary" to="/agegroups">
-              Add AgeGroups
-            </NavLink>
-          </li>
-        </ul>
-      </nav>
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingGame, setEditingGame] = useState(null);
+  const [dataSource, setDataSource] = useState([
+    {
+      id: 1,
+      name: "E Shtune",
+      email: "Ferizaj / Prishtine",
+      address: "18:45 - 20:00",
+    },
+    {
+      id: 2,
+      name: "E Shtune",
+      email: "Ferizaj / Prishtine",
+      address: "18:45 - 20:00",
+    },
+    {
+      id: 3,
+      name: "E Shtune",
+      email: "Ferizaj / Prishtine",
+      address: "18:45 - 20:00",
+    },
+  ]);
+  const columns = [
+    {
+      key: "1",
+      title: "ID",
+      dataIndex: "id",
+    },
+    {
+      key: "2",
+      title: "Day",
+      dataIndex: "name",
+    },
+    {
+      key: "3",
+      title: "Club",
+      dataIndex: "email",
+    },
+    {
+      key: "4",
+      title: "Time",
+      dataIndex: "address",
+    },
+    {
+      key: "5",
+      title: "Actions",
+      render: (record) => {
+        return (
+          <>
+            <EditOutlined
+              onClick={() => {
+                onEditGame(record);
+              }}
+            />
+            <DeleteOutlined
+              onClick={() => {
+                onDeleteGame(record);
+              }}
+              style={{ color: "red", marginLeft: 12 }}
+            />
+          </>
+        );
+      },
+    },
+  ];
 
-        <Routes>
-          
-        <Route path='/home' element={<Home/>} />
-        <Route path='/trainer' element={<Trainer/>} />
-        <Route path='/gender' element={<Gender/>} />
-        <Route path='/city' element={<City/>} />
-        <Route path='/nationality' element={<Nationality/>} />
-        <Route path='/agegroups' element={<AgeGroups/>} />
-      </Routes>
+  const onAddGame = () => {
+    const randomNumber = parseInt(Math.random() * 1000);
+    const newGame = {
+      id: randomNumber,
+      name: "Name " + randomNumber,
+      email: randomNumber + "@gmail.com",
+      address: "Address " + randomNumber,
+    };
+    setDataSource((pre) => {
+      return [...pre, newGame];
+    });
+  };
+  const onDeleteGame = (record) => {
+    Modal.confirm({
+      title: "Are you sure, you want to delete this Game record?",
+      okText: "Yes",
+      okType: "danger",
+      onOk: () => {
+        setDataSource((pre) => {
+          return pre.filter((Game) => Game.id !== record.id);
+        });
+      },
+    });
+  };
+  const onEditGame = (record) => {
+    setIsEditing(true);
+    setEditingGame({ ...record });
+  };
+  const resetEditing = () => {
+    setIsEditing(false);
+    setEditingGame(null);
+  };
+  return (
+    <div className="App">
+      <header className="App-header">
+        <Button onClick={onAddGame}>Add The Game</Button>
+        <Table className="" columns={columns} dataSource={dataSource}></Table>
+        <Modal 
+          title="Edit Game"
+          visible={isEditing}
+          okText="Save"
+          onCancel={() => {
+            resetEditing();
+          }}
+          onOk={() => {
+            setDataSource((pre) => {
+              return pre.map((Game) => {
+                if (Game.id === editingGame.id) {
+                  return editingGame;
+                } else {
+                  return Game;
+                }
+              });
+            });
+            resetEditing();
+          }}
+        >
+          Day<Input className="day"
+            value={editingGame?.name}
+            onChange={(e) => {
+              setEditingGame((pre) => {
+                return { ...pre, name: e.target.value };
+              });
+            }}
+          />
+          Club<Input className="day"
+            value={editingGame?.email}
+            onChange={(e) => {
+              setEditingGame((pre) => {
+                return { ...pre, email: e.target.value };
+              });
+            }}
+          />
+          Time<Input className="day"
+            value={editingGame?.address}
+            onChange={(e) => {
+              setEditingGame((pre) => {
+                return { ...pre, address: e.target.value };
+              });
+            }}
+          />
+        </Modal>
+      </header>
     </div>
-    </BrowserRouter>
   );
 }
 
