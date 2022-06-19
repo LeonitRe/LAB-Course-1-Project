@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace BestPlayerCrud
+namespace PlayerRegisterCrud
 {
     public class Program
     {

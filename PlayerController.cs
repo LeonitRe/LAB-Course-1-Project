@@ -1,155 +1,205 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using BestPlayerCrud.Models;
-using System.IO;
+using System.Data;
+using System.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
+using PlayerRegisterCrud.Models;
 using Microsoft.AspNetCore.Hosting;
+using System.IO;
 
-namespace BestPlayerCrud.Controllers
+namespace PlayerRegisterCrud.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
     public class PlayerController : ControllerBase
     {
-        private readonly PlayerDbContext _context;
-        private readonly IWebHostEnvironment _hostEnvironment;
-
-        public PlayerController(PlayerDbContext context, IWebHostEnvironment hostEnvironment)
+        private readonly IConfiguration _configuration;
+        private readonly IWebHostEnvironment _env;
+        public PlayerController(IConfiguration configuration, IWebHostEnvironment env)
         {
-            _context = context;
-            this._hostEnvironment = hostEnvironment;
+            _configuration = configuration;
+            _env = env;
         }
 
-        // GET: api/Player
+
+
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<PlayerModel>>> GetPlayer()
-        {
-            return await _context.PlayerModel
-                .Select(x => new PlayerModel()
+            public JsonResult Get()
+            {
+                string query = @"
+                            select PlayerId, PlayerName, PlayerUsername, Email, EmailPrivat, PhoneNumber, convert(varchar(10),DateOfBirth,120) as DateOfBirth, Gender, City, Nationality, Address, AgeGroups, convert(varchar(10),DateOfJoining,120) as DateOfJoining, PhotoFileName
+                            from
+                            dbo.Player
+                            ";
+
+                DataTable table = new DataTable();
+                string sqlDataSource = _configuration.GetConnectionString("PlayerRegisterAppCon");
+                SqlDataReader myReader;
+                using (SqlConnection myCon = new SqlConnection(sqlDataSource))
                 {
-                    PlayerID = x.PlayerID,
-                    PlayerName = x.PlayerName,
-                    Description = x.Description,
-                    ImageName = x.ImageName,
-                    ImageSrc = String.Format("{0}://{1}{2}/Images/{3}", Request.Scheme, Request.Host, Request.PathBase, x.ImageName)
-                })
-                .ToListAsync();
-        }
-
-        // GET: api/Player/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<PlayerModel>> GetPlayerModel(int id)
-        {
-            var playerModel = await _context.PlayerModel.FindAsync(id);
-
-            if (playerModel == null)
-            {
-                return NotFound();
-            }
-
-            return playerModel;
-        }
-
-        // PUT: api/Player/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to, for
-        // more details, see https://go.microsoft.com/fwlink/?linkid=2123754.
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutPlayerModel(int id, [FromForm] PlayerModel playerModel)
-        {
-            if (id != playerModel.PlayerID)
-            {
-                return BadRequest();
-            }
-
-            if (playerModel.ImageFile != null)
-            {
-                DeleteImage(playerModel.ImageName);
-                playerModel.ImageName = await SaveImage(playerModel.ImageFile);
-            }
-
-            _context.Entry(playerModel).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!PlayerModelExists(id))
-                {
-                    return NotFound();
+                    myCon.Open();
+                    using (SqlCommand myCommand = new SqlCommand(query, myCon))
+                    {
+                    myReader = myCommand.ExecuteReader();
+                        table.Load(myReader);
+                        myReader.Close();
+                        myCon.Close();
+                    }
                 }
-                else
+
+                return new JsonResult(table);
+            }
+
+            [HttpPost]
+            public JsonResult Post(Player plr)
+            {
+                string query = @"
+                           insert into dbo.Player
+                           (PlayerName, PlayerUsername, Email, EmailPrivat, PhoneNumber, DateOfBirth, Gender, City, Nationality, Address, AgeGroups, DateOfJoining, PhotoFileName)
+                    values (@PlayerName, @PlayerUsername, @Email, @EmailPrivat, @PhoneNumber, @DateOfBirth, @Gender, @City, @Nationality, @Address, @AgeGroups, @DateOfJoining, @PhotoFileName)
+                            ";
+
+                DataTable table = new DataTable();
+                string sqlDataSource = _configuration.GetConnectionString("PlayerRegisterAppCon");
+                SqlDataReader myReader;
+                using (SqlConnection myCon = new SqlConnection(sqlDataSource))
                 {
-                    throw;
+                    myCon.Open();
+                    using (SqlCommand myCommand = new SqlCommand(query, myCon))
+                    {
+                        myCommand.Parameters.AddWithValue("@PlayerName", plr.PlayerName);
+                        myCommand.Parameters.AddWithValue("@PlayerUsername", plr.PlayerUsername);
+                        myCommand.Parameters.AddWithValue("@Email", plr.Email);
+                        myCommand.Parameters.AddWithValue("@EmailPrivat", plr.EmailPrivat);
+                        myCommand.Parameters.AddWithValue("@PhoneNumber", plr.PhoneNumber);
+                        myCommand.Parameters.AddWithValue("@DateOfBirth", plr.DateOfBirth);
+                        myCommand.Parameters.AddWithValue("@Gender", plr.Gender);
+                        myCommand.Parameters.AddWithValue("@City", plr.City);
+                        myCommand.Parameters.AddWithValue("@Nationality", plr.Nationality);
+                        myCommand.Parameters.AddWithValue("@Address", plr.Address);
+                        myCommand.Parameters.AddWithValue("@AgeGroups", plr.AgeGroups);
+                        myCommand.Parameters.AddWithValue("@DateOfJoining", plr.DateOfJoining);
+                        myCommand.Parameters.AddWithValue("@PhotoFileName", plr.PhotoFileName);
+                        myReader = myCommand.ExecuteReader();
+                        table.Load(myReader);
+                        myReader.Close();
+                        myCon.Close();
+                    }
+                }
+
+                return new JsonResult("Added Successfully");
+            }
+
+
+            [HttpPut]
+            public JsonResult Put(Player plr)
+            {
+                string query = @"
+                           update dbo.Player
+                           set PlayerName= @PlayerName,
+                            PlayerUsername=@PlayerUsername,
+                            Email=@Email,
+                            EmailPrivat=@EmailPrivat,
+                            PhoneNumber=@PhoneNumber,
+                            DateOfBirth=@DateOfBirth,
+                            Gender=@Gender,
+                            City=@City,
+                            Nationality=@Nationality,
+                            Address=@Address,
+                            AgeGroups=@AgeGroups,
+                            DateOfJoining=@DateOfJoining,
+                            PhotoFileName=@PhotoFileName
+                            where PlayerId=@PlayerId
+                            ";
+
+                DataTable table = new DataTable();
+                string sqlDataSource = _configuration.GetConnectionString("PlayerRegisterAppCon");
+                SqlDataReader myReader;
+                using (SqlConnection myCon = new SqlConnection(sqlDataSource))
+                {
+                    myCon.Open();
+                    using (SqlCommand myCommand = new SqlCommand(query, myCon))
+                    {
+                        myCommand.Parameters.AddWithValue("@PlayerName", plr.PlayerName);
+                        myCommand.Parameters.AddWithValue("@PlayerUsername", plr.PlayerUsername);
+                        myCommand.Parameters.AddWithValue("@Email", plr.Email);
+                        myCommand.Parameters.AddWithValue("@EmailPrivat", plr.EmailPrivat);
+                        myCommand.Parameters.AddWithValue("@PhoneNumber", plr.PhoneNumber);
+                        myCommand.Parameters.AddWithValue("@DateOfBirth", plr.DateOfBirth);
+                        myCommand.Parameters.AddWithValue("@Gender", plr.Gender);
+                        myCommand.Parameters.AddWithValue("@City", plr.City);
+                        myCommand.Parameters.AddWithValue("@City", plr.Nationality);
+                        myCommand.Parameters.AddWithValue("@Address", plr.Address);
+                        myCommand.Parameters.AddWithValue("@AgeGroups", plr.AgeGroups);
+                        myCommand.Parameters.AddWithValue("@DateOfJoining", plr.DateOfJoining);
+                        myCommand.Parameters.AddWithValue("@PhotoFileName", plr.PhotoFileName);
+                        myReader = myCommand.ExecuteReader();
+                        table.Load(myReader);
+                        myReader.Close();
+                        myCon.Close();
+                    }
+                }
+
+                return new JsonResult("Updated Successfully");
+            }
+
+            [HttpDelete("{id}")]
+            public JsonResult Delete(int id)
+            {
+                string query = @"
+                           delete from dbo.Player
+                            where PlayerId=@PlayerId
+                            ";
+
+                DataTable table = new DataTable();
+                string sqlDataSource = _configuration.GetConnectionString("PlayerRegisterAppCon");
+                SqlDataReader myReader;
+                using (SqlConnection myCon = new SqlConnection(sqlDataSource))
+                {
+                    myCon.Open();
+                    using (SqlCommand myCommand = new SqlCommand(query, myCon))
+                    {
+                        myCommand.Parameters.AddWithValue("@PlayerId", id);
+
+                        myReader = myCommand.ExecuteReader();
+                        table.Load(myReader);
+                        myReader.Close();
+                        myCon.Close();
+                    }
+                }
+
+                return new JsonResult("Deleted Successfully");
+            }
+
+
+            [Route("SaveFile")]
+            [HttpPost]
+            public JsonResult SaveFile()
+            {
+                try
+                {
+                    var httpRequest = Request.Form;
+                    var postedFile = httpRequest.Files[0];
+                    string filename = postedFile.FileName;
+                    var physicalPath = _env.ContentRootPath + "/Photos/" + filename;
+
+                    using (var stream = new FileStream(physicalPath, FileMode.Create))
+                    {
+                        postedFile.CopyTo(stream);
+                    }
+
+                    return new JsonResult(filename);
+                }
+                catch (Exception)
+                {
+
+                    return new JsonResult("anonymous.PNG");
                 }
             }
 
-            return NoContent();
-        }
-
-        // POST: api/Player
-        // To protect from overposting attacks, enable the specific properties you want to bind to, for
-        // more details, see https://go.microsoft.com/fwlink/?linkid=2123754.
-        [HttpPost]
-        public async Task<ActionResult<PlayerModel>> PostPlayerModel([FromForm] PlayerModel playerModel)
-        {
-            playerModel.ImageName = await SaveImage(playerModel.ImageFile);
-            _context.PlayerModel.Add(playerModel);
-            await _context.SaveChangesAsync();
-
-            return StatusCode(201);
-        }
-
-        private Task<string> SaveImage(IFormFile imageFile)
-        {
-            throw new NotImplementedException();
-        }
-
-        // DELETE: api/Player/5
-        [HttpDelete("{id}")]
-        public async Task<ActionResult<PlayerModel>> DeletePlayerModel(int id)
-        {
-            var playerModel = await _context.PlayerModel.FindAsync(id);
-            if (playerModel == null)
-            {
-                return NotFound();
-            }
-            DeleteImage(playerModel.ImageName);
-            _context.PlayerModel.Remove(playerModel);
-            await _context.SaveChangesAsync();
-
-            return playerModel;
-        }
-
-        private bool PlayerModelExists(int id)
-        {
-            return _context.PlayerModel.Any(e => e.PlayerID == id);
-        }
-
-        [NonAction]
-        public async Task<string> SaveImage(IFormFile imageFile, HttpContext httpContext)
-        {
-            string imageName = new String(Path.GetFileNameWithoutExtension(imageFile.FileName).Take(10).ToArray()).Replace(' ', '-');
-            imageName = imageName + DateTime.Now.ToString("yymmssfff") + Path.GetExtension(imageFile.FileName);
-            var imagePath = Path.Combine(_hostEnvironment.ContentRootPath, "Images", imageName);
-            using (var fileStream = new FileStream(imagePath, FileMode.Create))
-            {
-                await imageFile.CopyToAsync(fileStream);
-            }
-            return imageName;
-        }
-
-        [NonAction]
-        public void DeleteImage(string imageName)
-        {
-            var imagePath = Path.Combine(_hostEnvironment.ContentRootPath, "Images", imageName);
-            if (System.IO.File.Exists(imagePath))
-                System.IO.File.Delete(imagePath);
         }
     }
-}
