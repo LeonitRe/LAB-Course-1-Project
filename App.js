@@ -1,66 +1,46 @@
-import logo from './logo.svg';
-import './App.css';
-import {Home} from './Home';
-import {Player} from './Player';
-import {AgeGroups} from './AgeGroups';
-import {Gender} from './Gender';
-import {City} from './City';
-import {Nationality} from './Nationality';
-import {BrowserRouter, Route, Routes, Switch, NavLink, Router} from 'react-router-dom';
-
-function App() {
-  return (
-    <BrowserRouter>
-    <div className="App container">
-      <h3 className="d-flex justify-content-center m-3">
-        Player Cruds
-      </h3>
-      <nav className="navbar navbar-expand-sm bg-light navbar-dark">
-        <ul className="navbar-nav">
-          <li className="nav-item- m-1">
-            <NavLink className="btn btn-light btn-outline-primary" to="/home">
-              Home
-            </NavLink>
-          </li>
-          <li className="nav-item- m-1">
-            <NavLink className="btn btn-light btn-outline-primary" to="/player">
-              Add Player
-            </NavLink>
-          </li>
-          <li className="nav-item- m-1">
-            <NavLink className="btn btn-light btn-outline-primary" to="/gender">
-              Add Gender
-            </NavLink>
-          </li>
-          <li className="nav-item- m-1">
-            <NavLink className="btn btn-light btn-outline-primary" to="/city">
-              Add City
-            </NavLink>
-          </li>
-          <li className="nav-item- m-1">
-            <NavLink className="btn btn-light btn-outline-primary" to="/nationality">
-              Add Nationality
-            </NavLink>
-          </li>
-          <li className="nav-item- m-1">
-            <NavLink className="btn btn-light btn-outline-primary" to="/agegroups">
-              Add AgeGroups
-            </NavLink>
-          </li>
-        </ul>
-      </nav>
-
-      <Routes>
-        <Route path='/home' element={<Home/>} />
-        <Route path='/player' element={<Player/>} />
-        <Route path='/gender' element={<Gender/>} />
-        <Route path='/city' element={<City/>} />
-        <Route path='/nationality' element={<Nationality/>} />
-        <Route path='/agegroups' element={<AgeGroups/>} />
-      </Routes>
-    </div>
-    </BrowserRouter>
-  );
+import React, { useState } from "react";
+import Navbar from './components/Navbar';
+import Form from './components/Form';
+import Notifications from './components/Notifications';
+import EditModal from './components/EditModal';
+export default function App() {
+    const [title, settitle] = useState("")
+    const [desc, setDesc] = useState("")
+    const [notifications, setNotifications] = useState(getNotificationsFromLs)
+    const [editId, seteditId] = useState("")
+    localStorage.setItem("notifications", JSON.stringify(notifications))
+    return (
+        <>
+            <EditModal editId={editId} notifications={notifications} setNotifications={setNotifications}/>
+            <Navbar />
+            <Form title={title} settitle={settitle} desc={desc} setDesc={setDesc} notifications={notifications} setNotifications={setNotifications} />
+            <div className="container">
+                <div className="row justify-content-center">
+                    <div className="col-md-10">
+                        <h2 className="mb-3">Your Notifications</h2>
+                        {
+                            notifications.length === 0 ? <div className="card mb-3">
+                                <div className="card-body">
+                                    <h5 className="card-title">Message:</h5>
+                                    <p className="card-text">No notifications are available for reading.</p>
+                                </div>
+                            </div> : notifications.map((element) => {
+                                return (
+                                    <Notifications element={element} key={element.id} notifications={notifications} setNotifications={setNotifications} seteditId={seteditId}/>
+                                )
+                            })
+                        }
+                    </div>
+                </div>
+            </div>
+        </>
+    )
+    function getNotificationsFromLs(){
+        const notification=JSON.parse(localStorage.getItem("notifications"));
+        if(notification){
+            return notification
+        }else{
+            return [];
+        }
+    }
 }
-
-export default App;
