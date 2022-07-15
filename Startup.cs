@@ -13,7 +13,7 @@ using Newtonsoft.Json.Serialization;
 using Microsoft.Extensions.FileProviders;
 using System.IO;
 
-namespace PlayerRegisterCrud
+namespace UploadImage
 {
     public class Startup
     {
